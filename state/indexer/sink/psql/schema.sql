@@ -36,7 +36,7 @@ CREATE TABLE tx_results (
   -- The hex-encoded hash of the transaction.
   tx_hash VARCHAR NOT NULL,
   -- The protobuf wire encoding of the TxResult message.
-  tx_result BYTEA NOT NULL,
+  tx_result VARCHAR NOT NULL,
 
   UNIQUE (block_id, index)
 );
@@ -65,21 +65,26 @@ CREATE TABLE attributes (
    UNIQUE (event_id, key)
 );
 
--- A joined view of events and their attributes. Events that do not have any
--- attributes are represented as a single row with empty key and value fields.
-CREATE VIEW event_attributes AS
-  SELECT block_id, tx_id, type, key, composite_key, value
-  FROM events LEFT JOIN attributes ON (events.rowid = attributes.event_id);
+CREATE VIEW block_txs AS
+  SELECT blocks.rowid as block_id, height, chain_id, tx_hash, index, tx_result
+  FROM blocks JOIN tx_results ON (blocks.rowid = tx_results.block_id);
 
--- A joined view of all block events (those having tx_id NULL).
-CREATE VIEW block_events AS
-  SELECT blocks.rowid as block_id, height, chain_id, type, key, composite_key, value
-  FROM blocks JOIN event_attributes ON (blocks.rowid = event_attributes.block_id)
-  WHERE event_attributes.tx_id IS NULL;
 
--- A joined view of all transaction events.
-CREATE VIEW tx_events AS
-  SELECT height, index, chain_id, type, key, composite_key, value, tx_results.created_at
-  FROM blocks JOIN tx_results ON (blocks.rowid = tx_results.block_id)
-  JOIN event_attributes ON (tx_results.rowid = event_attributes.tx_id)
-  WHERE event_attributes.tx_id IS NOT NULL;
+---- A joined view of events and their attributes. Events that do not have any
+---- attributes are represented as a single row with empty key and value fields.
+--CREATE VIEW event_attributes AS
+--  SELECT block_id, tx_id, type, key, composite_key, value
+--  FROM events LEFT JOIN attributes ON (events.rowid = attributes.event_id);
+--
+---- A joined view of all block events (those having tx_id NULL).
+--CREATE VIEW block_events AS
+--  SELECT blocks.rowid as block_id, height, chain_id, type, key, composite_key, value
+--  FROM blocks JOIN event_attributes ON (blocks.rowid = event_attributes.block_id)
+--  WHERE event_attributes.tx_id IS NULL;
+--
+---- A joined view of all transaction events.
+--CREATE VIEW tx_events AS
+--  SELECT height, index, chain_id, type, key, composite_key, value, tx_results.created_at
+--  FROM blocks JOIN tx_results ON (blocks.rowid = tx_results.block_id)
+--  JOIN event_attributes ON (tx_results.rowid = event_attributes.tx_id)
+--  WHERE event_attributes.tx_id IS NOT NULL;
