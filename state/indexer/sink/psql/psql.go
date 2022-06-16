@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gogo/protobuf/jsonpb"
+	"github.com/protocolbuffers/protobuf-go/encoding/protojson"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
@@ -173,16 +173,14 @@ INSERT INTO `+tableBlocks+` (height, chain_id, created_at)
 	})
 }
 
-var (
-	jsonpbMarshaller = jsonpb.Marshaler{}
-)
-
 func (es *EventSink) IndexTxEvents(txrs []*abci.TxResult) error {
 	ts := time.Now().UTC()
 
 	for _, txr := range txrs {
 		// Encode the result message in protobuf wire format for indexing.
-		resultData, err := jsonpbMarshaller.MarshalToString(txr)
+
+		resultData := protojson.Format(txr)
+		var err error
 		if err != nil {
 			return fmt.Errorf("marshaling tx_result: %w", err)
 		}
