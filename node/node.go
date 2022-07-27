@@ -40,6 +40,7 @@ import (
 	"github.com/tendermint/tendermint/state/indexer"
 	blockidxkv "github.com/tendermint/tendermint/state/indexer/block/kv"
 	blockidxnull "github.com/tendermint/tendermint/state/indexer/block/null"
+	proxysink "github.com/tendermint/tendermint/state/indexer/sink/proxy"
 	"github.com/tendermint/tendermint/state/indexer/sink/psql"
 	"github.com/tendermint/tendermint/state/txindex"
 	"github.com/tendermint/tendermint/state/txindex/kv"
@@ -291,6 +292,13 @@ func createAndStartIndexerService(
 		es, err := psql.NewEventSink(config.TxIndex.PsqlConn, chainID)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("creating psql indexer: %w", err)
+		}
+		txIndexer = es.TxIndexer()
+		blockIndexer = es.BlockIndexer()
+	case "proxy":
+		es, err := proxysink.NewEventSink(chainID)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("creating proxy indexer: %w", err)
 		}
 		txIndexer = es.TxIndexer()
 		blockIndexer = es.BlockIndexer()
