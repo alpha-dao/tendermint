@@ -110,7 +110,8 @@ func (is *IndexerService) OnStop() {
 // whether there's a previously indexed tx.
 // SKIP the current tx if the previously indexed record is found and successful.
 func DeduplicateBatch(ops []*abci.TxResult, txIdxr TxIndexer) ([]*abci.TxResult, error) {
-	result := make([]*abci.TxResult, 0, len(ops))
+	return ops, nil
+	/*result := make([]*abci.TxResult, 0, len(ops))
 
 	// keep track of successful txs in this block in order to suppress latter ones being indexed.
 	var successfulTxsInThisBlock = make(map[string]struct{})
@@ -144,5 +145,5 @@ func DeduplicateBatch(ops []*abci.TxResult, txIdxr TxIndexer) ([]*abci.TxResult,
 		result = append(result, txResult)
 	}
 
-	return result, nil
+	return result, nil*/
 }
