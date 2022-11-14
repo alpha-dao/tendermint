@@ -1269,6 +1269,10 @@ func (n *Node) Config() *cfg.Config {
 	return n.config
 }
 
+func (n *Node) State() *sm.Store {
+	return &n.stateStore
+}
+
 //------------------------------------------------------------------------------
 
 func (n *Node) Listeners() []string {
