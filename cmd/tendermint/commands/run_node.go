@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"log"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -127,6 +128,9 @@ func NewRunNodeCmd(nodeProvider nm.Provider) *cobra.Command {
 				}
 			})
 
+			if err != nil {
+				log.Fatal(err)
+			}
 			// Run forever.
 			select {}
 		},

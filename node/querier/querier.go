@@ -5,8 +5,10 @@ import (
 	"fmt"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/store"
+	"google.golang.org/grpc"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	"log"
+	"net"
 	"os"
 	"time"
 )
@@ -16,8 +18,24 @@ var (
 )
 
 type CosmosQuerier struct {
-	blockStore *store.BlockStore
-	stateStore sm.Store
+	BlockStore *store.BlockStore
+	StateStore sm.Store
+}
+
+func (q *CosmosQuerier) mustEmbedUnimplementedCosmosIndexerServer() {
+	panic("Forward-compatibility: Unknown method!")
+}
+
+func (q *CosmosQuerier) ListenAndServe(port string) error {
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%s", port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+		return err
+	}
+	var opts []grpc.ServerOption
+	grpcServer := grpc.NewServer(opts...)
+	RegisterCosmosIndexerServer(grpcServer, q)
+	return grpcServer.Serve(lis)
 }
 
 func (q *CosmosQuerier) GetBlock(ctx context.Context, request *GetBlockRequest) (*GetBlockResponse, error) {
@@ -80,11 +98,11 @@ func (q *CosmosQuerier) spawnBlockStreamPushWorker(pushChannel chan int64, strea
 }
 
 func (q *CosmosQuerier) getBlockFromLocal(height int64) (*Block, error) {
-	tmBlock := q.blockStore.LoadBlock(height)
+	tmBlock := q.BlockStore.LoadBlock(height)
 	if tmBlock == nil {
 		return nil, errBlockNotFound
 	}
-	abciResponse, err := q.stateStore.LoadABCIResponses(height)
+	abciResponse, err := q.StateStore.LoadABCIResponses(height)
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +124,5 @@ func (q *CosmosQuerier) getBlockFromLocal(height int64) (*Block, error) {
 		}
 		txs = append(txs, &pbTx)
 	}
-
 	return &Block{Height: height, Txs: txs, Time: timestamppb.New(tmBlock.Time)}, nil
 }

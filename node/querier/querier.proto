@@ -2,7 +2,7 @@ syntax = "proto3";
 package querier;
 
 import "google/protobuf/timestamp.proto";
-option go_package = "github.com/tendermint/tendermint/commands/querier";
+option go_package = "github.com/tendermint/tendermint/node/querier";
 
 // Data Schema
 
