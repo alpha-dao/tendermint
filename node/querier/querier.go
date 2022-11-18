@@ -7,10 +7,9 @@ import (
 	"github.com/tendermint/tendermint/store"
 	"google.golang.org/grpc"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	"io"
 	"log"
 	"net"
-	"os"
-	"time"
 )
 
 var (
@@ -49,52 +48,48 @@ func (q *CosmosQuerier) GetBlock(ctx context.Context, request *GetBlockRequest) 
 	}, nil
 }
 
-func (q *CosmosQuerier) GetBlockStreamFrom(request *GetBlockRequest, stream CosmosIndexer_GetBlockStreamFromServer) error {
-	//spawn multiplexing end
-	end1, end2 := make(chan struct{}), make(chan struct{})
-	go func(input <-chan struct{}, o1 chan<- struct{}, o2 chan<- struct{}) {
+func (q *CosmosQuerier) GetBlockStreamFrom(stream CosmosIndexer_GetBlockStreamFromServer) error {
+	for {
 		select {
-		case <-input:
-			o1 <- struct{}{}
-			o2 <- struct{}{}
-			close(o1)
-			close(o2)
-		}
-	}(stream.Context().Done(), end1, end2)
-
-	//spawn worker
-	go q.spawnBlockStreamPushWorker(make(chan int64), stream, end1)
-
-	<-end2
-	fmt.Println("Querier grpc stream closed!")
-	return nil
-}
-
-func (q *CosmosQuerier) spawnBlockStreamPushWorker(pushChannel chan int64, stream CosmosIndexer_GetBlockStreamFromServer, end <-chan struct{}) {
-	select {
-	case heightToStream := <-pushChannel:
-
-		block, err := q.getBlockFromLocal(heightToStream)
-		if err == errBlockNotFound {
-			time.Sleep(6 * time.Second)
-			pushChannel <- heightToStream
-		} else if err != nil {
-			log.Fatal(err)
-			//TODO: Might need to handle later. not fatal crash
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		default:
 		}
 
-		err = stream.Send(&GetBlockResponse{
-			Block: block,
-		})
+		req, err := stream.Recv()
 
+		if err == io.EOF {
+			fmt.Println("stream ended")
+			return nil
+		}
 		if err != nil {
-			log.New(os.Stderr, "", 0).Println(err)
-			log.New(os.Stderr, "", 0).Printf("failed query block height %d\n", heightToStream)
+			fmt.Printf("Stream Receive Error: %s\n", err.Error())
+			continue
 		}
-		pushChannel <- heightToStream + 1
-	case <-end:
-		return
+
+		block, err := q.getBlockFromLocal(req.Height)
+		var res *GetBlockResponse
+		if err == errBlockNotFound {
+			res = &GetBlockResponse{
+				Block:     nil,
+				IsPresent: false,
+			}
+		} else if err != nil {
+			fmt.Printf("Get Block From Local Error: %s\n", err.Error())
+			return err
+		} else {
+			res = &GetBlockResponse{
+				Block:     block,
+				IsPresent: true,
+			}
+		}
+		if err = stream.Send(res); err != nil {
+			fmt.Printf("Block Send Error: %s\n", err.Error())
+		}
+		fmt.Printf("Block Send Height: %d\n", res.Block.Height)
 	}
+
+	return nil
 }
 
 func (q *CosmosQuerier) getBlockFromLocal(height int64) (*Block, error) {

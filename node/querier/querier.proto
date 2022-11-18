@@ -35,10 +35,11 @@ message GetBlockRequest {
 }
 
 message GetBlockResponse {
-  Block block = 1;
+  optional Block block = 1;
+  bool isPresent = 2;
 }
 
 service CosmosIndexer {
   rpc GetBlock(GetBlockRequest) returns (GetBlockResponse) {}
-  rpc GetBlockStreamFrom(GetBlockRequest) returns (stream GetBlockResponse) {}
+  rpc GetBlockStreamFrom(stream GetBlockRequest) returns (stream GetBlockResponse) {}
 }

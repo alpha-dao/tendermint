@@ -23,7 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CosmosIndexerClient interface {
 	GetBlock(ctx context.Context, in *GetBlockRequest, opts ...grpc.CallOption) (*GetBlockResponse, error)
-	GetBlockStreamFrom(ctx context.Context, in *GetBlockRequest, opts ...grpc.CallOption) (CosmosIndexer_GetBlockStreamFromClient, error)
+	GetBlockStreamFrom(ctx context.Context, opts ...grpc.CallOption) (CosmosIndexer_GetBlockStreamFromClient, error)
 }
 
 type cosmosIndexerClient struct {
@@ -43,28 +43,27 @@ func (c *cosmosIndexerClient) GetBlock(ctx context.Context, in *GetBlockRequest,
 	return out, nil
 }
 
-func (c *cosmosIndexerClient) GetBlockStreamFrom(ctx context.Context, in *GetBlockRequest, opts ...grpc.CallOption) (CosmosIndexer_GetBlockStreamFromClient, error) {
+func (c *cosmosIndexerClient) GetBlockStreamFrom(ctx context.Context, opts ...grpc.CallOption) (CosmosIndexer_GetBlockStreamFromClient, error) {
 	stream, err := c.cc.NewStream(ctx, &CosmosIndexer_ServiceDesc.Streams[0], "/querier.CosmosIndexer/GetBlockStreamFrom", opts...)
 	if err != nil {
 		return nil, err
 	}
 	x := &cosmosIndexerGetBlockStreamFromClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
 	return x, nil
 }
 
 type CosmosIndexer_GetBlockStreamFromClient interface {
+	Send(*GetBlockRequest) error
 	Recv() (*GetBlockResponse, error)
 	grpc.ClientStream
 }
 
 type cosmosIndexerGetBlockStreamFromClient struct {
 	grpc.ClientStream
+}
+
+func (x *cosmosIndexerGetBlockStreamFromClient) Send(m *GetBlockRequest) error {
+	return x.ClientStream.SendMsg(m)
 }
 
 func (x *cosmosIndexerGetBlockStreamFromClient) Recv() (*GetBlockResponse, error) {
@@ -80,7 +79,7 @@ func (x *cosmosIndexerGetBlockStreamFromClient) Recv() (*GetBlockResponse, error
 // for forward compatibility
 type CosmosIndexerServer interface {
 	GetBlock(context.Context, *GetBlockRequest) (*GetBlockResponse, error)
-	GetBlockStreamFrom(*GetBlockRequest, CosmosIndexer_GetBlockStreamFromServer) error
+	GetBlockStreamFrom(CosmosIndexer_GetBlockStreamFromServer) error
 	mustEmbedUnimplementedCosmosIndexerServer()
 }
 
@@ -91,7 +90,7 @@ type UnimplementedCosmosIndexerServer struct {
 func (UnimplementedCosmosIndexerServer) GetBlock(context.Context, *GetBlockRequest) (*GetBlockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlock not implemented")
 }
-func (UnimplementedCosmosIndexerServer) GetBlockStreamFrom(*GetBlockRequest, CosmosIndexer_GetBlockStreamFromServer) error {
+func (UnimplementedCosmosIndexerServer) GetBlockStreamFrom(CosmosIndexer_GetBlockStreamFromServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetBlockStreamFrom not implemented")
 }
 func (UnimplementedCosmosIndexerServer) mustEmbedUnimplementedCosmosIndexerServer() {}
@@ -126,15 +125,12 @@ func _CosmosIndexer_GetBlock_Handler(srv interface{}, ctx context.Context, dec f
 }
 
 func _CosmosIndexer_GetBlockStreamFrom_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(GetBlockRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(CosmosIndexerServer).GetBlockStreamFrom(m, &cosmosIndexerGetBlockStreamFromServer{stream})
+	return srv.(CosmosIndexerServer).GetBlockStreamFrom(&cosmosIndexerGetBlockStreamFromServer{stream})
 }
 
 type CosmosIndexer_GetBlockStreamFromServer interface {
 	Send(*GetBlockResponse) error
+	Recv() (*GetBlockRequest, error)
 	grpc.ServerStream
 }
 
@@ -144,6 +140,14 @@ type cosmosIndexerGetBlockStreamFromServer struct {
 
 func (x *cosmosIndexerGetBlockStreamFromServer) Send(m *GetBlockResponse) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func (x *cosmosIndexerGetBlockStreamFromServer) Recv() (*GetBlockRequest, error) {
+	m := new(GetBlockRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // CosmosIndexer_ServiceDesc is the grpc.ServiceDesc for CosmosIndexer service.
@@ -163,6 +167,7 @@ var CosmosIndexer_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "GetBlockStreamFrom",
 			Handler:       _CosmosIndexer_GetBlockStreamFrom_Handler,
 			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "querier.proto",
