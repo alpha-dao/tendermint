@@ -86,7 +86,11 @@ func (q *CosmosQuerier) GetBlockStreamFrom(stream CosmosIndexer_GetBlockStreamFr
 		if err = stream.Send(res); err != nil {
 			fmt.Printf("Block Send Error: %s\n", err.Error())
 		}
-		fmt.Printf("Block Send Height: %d\n", res.Block.Height)
+		if res.IsPresent {
+			fmt.Printf("Block Send Height: %d\n", res.Block.Height)
+		} else {
+			fmt.Printf("No Block On Height: %d\n", req.Height)
+		}
 	}
 
 	return nil
