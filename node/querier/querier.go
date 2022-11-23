@@ -69,14 +69,13 @@ func (q *CosmosQuerier) GetBlockStreamFrom(stream CosmosIndexer_GetBlockStreamFr
 
 		block, err := q.getBlockFromLocal(req.Height)
 		var res *GetBlockResponse
-		if err == errBlockNotFound {
+		if err != nil {
+			fmt.Printf("Get Block From Local Error: %s\n", err.Error())
+
 			res = &GetBlockResponse{
 				Block:     nil,
 				IsPresent: false,
 			}
-		} else if err != nil {
-			fmt.Printf("Get Block From Local Error: %s\n", err.Error())
-			return err
 		} else {
 			res = &GetBlockResponse{
 				Block:     block,
